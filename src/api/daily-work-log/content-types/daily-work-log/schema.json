@@ -1,0 +1,37 @@
+{
+  "kind": "collectionType",
+  "collectionName": "daily_work_logs",
+  "info": {
+    "singularName": "daily-work-log",
+    "pluralName": "daily-work-logs",
+    "displayName": "Daily Work Log"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "date": {
+      "type": "datetime"
+    },
+    "tasks_completed": {
+      "type": "blocks"
+    },
+    "pending_tasks": {
+      "type": "blocks"
+    },
+    "mood": {
+      "type": "blocks"
+    },
+    "screenshot": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  }
+}

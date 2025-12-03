@@ -1,117 +1,156 @@
-# Welcome to PearlThoughts Internship Program
+# Documentation for Strapi Daily Work Logs CMS
 
-We are thrilled to welcome you to the PearlThoughts team! This internship is designed to provide you with valuable hands-on experience, deepen your understanding of technology, and help you hone your skills in a collaborative, innovative environment.
+A Strapi v5.31.2 headless CMS built with TypeScript for managing daily work logs.
 
-# Policies and Guidelines
+## 📋 Project Overview
 
-## Training and Attendance
+This Strapi application is a headless CMS designed for tracking daily work activities and productivity. It provides:
 
-### Training Sessions
-- **Schedule**: Every weekday at 10:30 AM 
-- **Attendance**: MANDATORY - Missing sessions affects your evaluation
-- **Duration**: Full attention required during training hours
+- **Intuitive Admin Panel** - User-friendly interface for content creation and management
+- **RESTful API** - Auto-generated API endpoints for all content types
+- **SQLite Database** - Lightweight database for local development (easily configurable for PostgreSQL/MySQL)
+- **Media Library** - Advanced media management with support for images, videos, audio files, and documents
+- **Custom Content Types** - Pre-configured Daily Work Log collection with rich text editing
+- **User Authentication** - Built-in user management and permissions system
 
-### Working Hours
-- **Availability**: 10 AM to 6 PM on all working days
-- **Active Participation**: Required in all team activities and discussions
+## 📁 Project Structure
 
-## Daily Requirements
+```
+myStrapi/
+├── config/                    # Application configuration
+│   ├── admin.ts
+│   ├── api.ts
+│   ├── database.ts
+│   ├── middlewares.ts
+│   ├── plugins.ts
+│   └── server.ts
+├── src/
+│   ├── admin/                 # Admin panel customization
+│   │   ├── app.example.tsx
+│   │   ├── tsconfig.json
+│   │   └── vite.config.example.ts
+│   ├── api/
+│   │   └── daily-work-log/    # Daily Work Logs API
+│   │       ├── content-types/
+│   │       │   └── daily-work-log/
+│   │       │       └── schema.json
+│   │       ├── controllers/
+│   │       │   └── daily-work-log.ts
+│   │       ├── routes/
+│   │       │   └── daily-work-log.ts
+│   │       └── services/
+│   │           └── daily-work-log.ts
+│   ├── extensions/            # Strapi extensions
+│   └── index.ts
+├── .tmp/                      # SQLite database location
+│   └── data.db
+├── public/                    # Static files & uploads
+├── .env.example
+├── package.json
+└── tsconfig.json
+```
 
-### 📝 Pull Requests (PR)
-- **Deadline**: Must be raised by end of each day
-- **Content**: Include all work completed during the day
-- **Consequence**: No PR = Marked absent for that day
+## 🚀 Installation & Setup
 
-### 📋 Status Updates
-- Post daily progress in your team channel
-- Use the [[../Templates/Daily-Status-Template|Daily Status Template]]
-- Be specific about completed tasks and blockers
+### 1. Install Dependencies
 
-## Task Management
+```bash
+npm install
+```
 
-### Assigned Tasks
-- Tasks assigned during morning training sessions
-- **Timely Completion**: Critical for your evaluation
-- Document challenges and solutions
+Update `.env` with your secrets (generate new keys for production).
 
-### Task Tracking
-- Update task status regularly
-- Communicate blockers immediately
-- Seek help when needed
+### 2. Build the Application
 
-## Evaluation Process
+```bash
+npm run build
+```
 
-### Weekly Evaluations
-- **When**: Every Friday
-- **Criteria**:
-  - Task completion and quality
-  - Collaboration and teamwork
-  - Learning progress
-  - Professional conduct
+## 🎨 Starting the Admin Panel
 
-### Performance Metrics
-- Code quality and best practices
-- Meeting deadlines
-- Communication effectiveness
-- Problem-solving approach
+### Development Mode
 
-## Communication Channels
+```bash
+npm run develop
+```
 
-### MS Teams Channels
+Admin panel: **http://localhost:1337/admin**
 
-| Channel | Purpose |
-|---------|------|
-| **Internship** | Key updates and announcements |
-| **Support** | Cloud resources and technical guidance |
-| **DevOps** | Deployment assistance and DevOps queries |
-| **Team [Name]** | Your team's collaboration space |
+### Production Mode
 
-### Email Communication
-- **Support Queries**: hr@pearlthoughts.com
-- **Topics**: LOA requests, Teams access, evaluation results
-- **Important**: Avoid raising these in training sessions or Teams channels
+```bash
+npm run start
+```
 
-## Termination Policy
+### First Login
 
-### ⚠️ Automatic Termination Triggers
-- Missing 3 consecutive training sessions
-- Failing to submit PR for 3 consecutive days
-- No prior notice will be given
+1. Visit `http://localhost:1337/admin`
+2. Create your admin account
+3. Complete registration
 
-## Professional Conduct
+## 📝 Content Type: Daily Work Logs
 
-### Expected Behavior
-1. **Professionalism**: Maintain professional demeanor in all interactions
-2. **Respect**: Treat all team members with respect
-3. **Punctuality**: Be on time for all meetings and deadlines
-4. **Integrity**: Be honest about your progress and challenges
-5. **Collaboration**: Actively help and learn from peers
+**API Endpoint:** `/api/daily-work-logs`
 
-## Support Resources
+**Schema Details:**
+- **Collection Type:** `daily_work_logs`
+- **Draft & Publish:** Enabled
 
-### Getting Help
-- Technical issues: Post in Support channel
-- DevOps help: Use DevOps channel
-- Administrative queries: Email hr@pearlthoughts.com
-- Task clarification: Ask your mentor during training
+**Fields:**
+- `date` (DateTime) - Date and time of the work log entry
+- `tasks_completed` (Blocks/Rich Text) - Detailed description of completed tasks with rich formatting
+- `pending_tasks` (Blocks/Rich Text) - List of pending or upcoming tasks
+- `mood` (Blocks/Rich Text) - Notes about mood, productivity, or general reflections
+- `screenshot` (Media, Multiple) - Upload multiple files (images, videos, audio, documents)
 
-## Best Practices
+**Creating a Work Log:**
 
-### Code Quality
-- Follow project coding standards
-- Write clean, documented code
-- Test your changes before PR
-- Review peers' code constructively
+1. Navigate to **Content Manager → Daily Work Logs**
+2. Click **"Create new entry"**
+3. Select the date and time
+4. Add completed and pending tasks using the rich text editor
+5. Document your mood or notes
+6. Upload relevant screenshots or files
+7. Click **Save** (draft) or **Save & Publish** (live)
 
-### Documentation
-- Document your learning journey
-- Share helpful resources with team
-- Maintain clear commit messages
-- Update project documentation
 
-## Your Journey Starts Here
+## ⚙️ Configuration
 
-We are excited to have you on board and look forward to seeing you grow and succeed during your time with us. 
+- **Database:** SQLite (`.tmp/data.db`)
+- **Port:** 1337
+- **Host:** 0.0.0.0
+- **Admin Path:** `/admin`
 
-**Welcome to PearlThoughts—let's embark on this journey together!**
-# The-Config-Crew
+## 🛠️ NPM Scripts
+
+```bash
+npm run develop    # Development with auto-reload
+npm run start      # Production mode
+npm run build      # Build admin panel
+```
+
+## 📦 Push to GitHub
+
+### 1. Verify .gitignore
+
+Ensures these are ignored:
+- `node_modules/`
+- `.env`
+- `.tmp/`
+- `build/`, `dist/`, `.cache/`
+
+### 2. Create Repository
+
+On GitHub, create a new repository.
+
+### 3. Push Code
+
+```bash
+git init
+git add .
+git commit -m "Initial commit: Strapi CMS with daily work logs"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/REPO_NAME.git
+git push -u origin main
+```
+
