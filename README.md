@@ -479,5 +479,210 @@ docker login
 
 ---
 
+## 🔄 CI/CD with GitHub Actions + ECR
 
+This project includes automated CI/CD pipelines using GitHub Actions to build, push Docker images to AWS ECR, and deploy to EC2 using Terraform.
 
+### Pipeline Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         GitHub Actions CI/CD                                │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                    CI Pipeline (ci.yml)                                │ │
+│  │                                                                        │ │
+│  │   Push to main ──► Build Docker Image ──► Push to ECR                 │ │
+│  │                                                                        │ │
+│  │   Triggers: push to main, manual dispatch                              │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                │                                            │
+│                                ▼                                            │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                    CD Pipeline (terraform.yml)                         │ │
+│  │                                                                        │ │
+│  │   Manual Trigger ──► Terraform Init ──► Plan ──► Apply ──► Verify     │ │
+│  │                                                                        │ │
+│  │   Actions: plan, apply, destroy                                        │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                │                                            │
+└────────────────────────────────┼────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              AWS Cloud                                       │
+│                                                                             │
+│   ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐        │
+│   │       ECR       │    │       EC2       │    │       RDS       │        │
+│   │  (Docker Image) │───►│  (Strapi App)   │───►│  (PostgreSQL)   │        │
+│   └─────────────────┘    └─────────────────┘    └─────────────────┘        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Workflow Files
+
+| File | Purpose | Trigger |
+|------|---------|---------|
+| `.github/workflows/ci.yml` | Build & push Docker image to ECR | Push to `main` branch |
+| `.github/workflows/terraform.yml` | Deploy infrastructure with Terraform | Manual (workflow_dispatch) |
+
+### Required GitHub Secrets
+
+Configure these secrets in your GitHub repository settings (`Settings → Secrets and variables → Actions`):
+
+| Secret | Description | Example |
+|--------|-------------|---------|
+| `AWS_ACCESS_KEY_ID` | AWS IAM access key | `AKIAIOSFODNN7EXAMPLE` |
+| `AWS_SECRET_ACCESS_KEY` | AWS IAM secret key | `wJalrXUtnFEMI/K7MDENG/...` |
+| `EC2_SSH_PRIVATE_KEY` | Private key for EC2 SSH access | `-----BEGIN RSA PRIVATE KEY-----...` |
+| `EC2_KEY_NAME` | AWS key pair name | `aadithkey` |
+| `DB_PASSWORD` | PostgreSQL database password | `YourSecurePassword123!` |
+| `APP_KEYS` | Strapi APP_KEYS | `key1==,key2==,key3==,key4==` |
+| `API_TOKEN_SALT` | Strapi API token salt | `randomBase64String==` |
+| `ADMIN_JWT_SECRET` | Strapi admin JWT secret | `randomBase64String==` |
+| `JWT_SECRET` | Strapi JWT secret | `randomBase64String==` |
+
+### Generate Strapi Secrets
+
+```bash
+# Generate each secret
+openssl rand -base64 16  # For API_TOKEN_SALT, ADMIN_JWT_SECRET, JWT_SECRET
+
+# Generate APP_KEYS (4 comma-separated keys)
+echo "$(openssl rand -base64 16),$(openssl rand -base64 16),$(openssl rand -base64 16),$(openssl rand -base64 16)"
+```
+
+### CI Pipeline (ci.yml)
+
+**Triggers:**
+- Automatically on push to `main` branch
+- Manually via workflow dispatch
+
+**Steps:**
+1. ✅ Checkout code
+2. ✅ Configure AWS credentials
+3. ✅ Login to Amazon ECR
+4. ✅ Create ECR repository (if not exists)
+5. ✅ Build Docker image (linux/amd64)
+6. ✅ Push to ECR with tags (latest + commit SHA)
+7. ✅ Output build summary
+
+### CD Pipeline (terraform.yml)
+
+**Triggers:**
+- Manual only (workflow_dispatch)
+- Options: `plan`, `apply`, `destroy`
+
+**Steps:**
+1. ✅ Checkout code
+2. ✅ Configure AWS credentials
+3. ✅ Login to ECR & get image URI
+4. ✅ Setup Terraform
+5. ✅ Terraform init, validate, plan
+6. ✅ Terraform apply (if selected)
+7. ✅ SSH verification of deployment
+8. ✅ Output deployment summary
+
+### How to Use
+
+#### 1. Initial Setup
+
+```bash
+# Add all secrets to GitHub repository
+# Settings → Secrets and variables → Actions → New repository secret
+```
+
+#### 2. Push Code to Trigger CI
+
+```bash
+git add .
+git commit -m "feat: add new feature"
+git push origin main
+```
+
+The CI pipeline will automatically:
+- Build your Docker image
+- Push to AWS ECR
+- Tag with commit SHA and `latest`
+
+#### 3. Deploy with Terraform (Manual)
+
+1. Go to **Actions** tab in GitHub
+2. Select **"CD - Terraform Deploy to EC2"**
+3. Click **"Run workflow"**
+4. Choose action: `plan` (preview) or `apply` (deploy)
+5. Click **"Run workflow"**
+
+#### 4. Verify Deployment
+
+After successful apply:
+- Check the **workflow summary** for Strapi URL
+- SSH verification is done automatically
+- Access `http://<ec2-ip>:1337/admin`
+
+### IAM Permissions Required
+
+The AWS IAM user needs these permissions:
+
+**For CI Pipeline (ECR):**
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "ecr:GetAuthorizationToken",
+    "ecr:BatchCheckLayerAvailability",
+    "ecr:GetDownloadUrlForLayer",
+    "ecr:BatchGetImage",
+    "ecr:PutImage",
+    "ecr:InitiateLayerUpload",
+    "ecr:UploadLayerPart",
+    "ecr:CompleteLayerUpload",
+    "ecr:CreateRepository",
+    "ecr:DescribeRepositories"
+  ],
+  "Resource": "*"
+}
+```
+
+**For CD Pipeline (Terraform):**
+```json
+{
+  "Effect": "Allow",
+  "Action": [
+    "ec2:*",
+    "rds:*",
+    "iam:*",
+    "ecr:*"
+  ],
+  "Resource": "*"
+}
+```
+
+### ECR Repository
+
+The CI pipeline creates an ECR repository named `strapi-daily-logs` in `ap-south-1` region.
+
+**Image Tags:**
+- `latest` - Always points to the most recent build
+- `<commit-sha>` - Specific commit for rollback
+
+### Troubleshooting CI/CD
+
+**ECR login failed:**
+- Ensure AWS credentials have ECR permissions
+- Check AWS_REGION is correct
+
+**Terraform state conflict:**
+- If state is locked, wait or manually unlock
+- Consider using S3 backend for state in production
+
+**EC2 can't pull ECR image:**
+- Ensure IAM instance profile is attached
+- Check ECR permissions in iam.tf
+- Verify AWS region matches
+
+**SSH verification failed:**
+- Check EC2_SSH_PRIVATE_KEY secret format (include full key with headers)
+- Ensure key matches EC2_KEY_NAME
+- Wait longer for EC2 initialization

@@ -1,6 +1,6 @@
 
 resource "aws_security_group" "strapi_sg" {
-  name        = "strapi-ec2-sg"
+  name        = "aadith-strapi-ec2-sg"
   description = "Security group for Strapi EC2 instance"
   vpc_id      = data.aws_vpc.default.id
 
@@ -36,6 +36,6 @@ resource "aws_security_group" "strapi_sg" {
   }
 
   tags = {
-    Name = "strapi-ec2-sg"
+    Name = "aadith-strapi-ec2-sg"
   }
 }

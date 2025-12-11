@@ -1,5 +1,5 @@
 resource "aws_security_group" "rds_sg" {
-  name        = "strapi-rds-sg"
+  name        = "aadith-strapi-rds-sg"
   description = "Security group for RDS PostgreSQL"
   vpc_id      = data.aws_vpc.default.id
 
@@ -19,6 +19,6 @@ resource "aws_security_group" "rds_sg" {
   }
 
   tags = {
-    Name = "strapi-rds-sg"
+    Name = "aadith-strapi-rds-sg"
   }
 }

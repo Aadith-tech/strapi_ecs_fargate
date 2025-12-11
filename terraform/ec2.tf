@@ -4,6 +4,7 @@ resource "aws_instance" "strapi_server" {
   key_name                    = var.private_key_config.key_name
   vpc_security_group_ids      = [aws_security_group.strapi_sg.id]
   associate_public_ip_address = true
+  iam_instance_profile        = aws_iam_instance_profile.ec2_profile.name
 
   root_block_device {
     volume_size = 30
@@ -12,6 +13,7 @@ resource "aws_instance" "strapi_server" {
 
   user_data = templatefile("${path.module}/user_data.sh", {
     docker_image     = var.docker_image
+    aws_region       = var.aws_region
     db_host          = aws_db_instance.strapi_postgres.address
     db_port          = aws_db_instance.strapi_postgres.port
     db_name          = var.db_name
@@ -24,7 +26,7 @@ resource "aws_instance" "strapi_server" {
   })
 
   tags = {
-    Name = "strapi-server"
+    Name = "aadith-strapi-server"
   }
 
   depends_on = [aws_db_instance.strapi_postgres]

@@ -9,7 +9,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  profile = "iamadmin-general"
+  # profile = "iamadmin-general"
 }
 
 data "aws_vpc" "default" {
@@ -22,9 +22,6 @@ data "aws_subnets" "default" {
     values = [data.aws_vpc.default.id]
   }
 }
-
-
-
 
 
 

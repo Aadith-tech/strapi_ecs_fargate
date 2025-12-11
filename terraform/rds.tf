@@ -1,10 +1,10 @@
 
 resource "aws_db_subnet_group" "strapi_db_subnet" {
-  name       = "strapi-db-subnet-group"
+  name       = "aadith-strapi-db-subnet-group"
   subnet_ids = data.aws_subnets.default.ids
 
   tags = {
-    Name = "strapi-db-subnet-group"
+    Name = "aadith-strapi-db-subnet-group"
   }
 }
 
@@ -26,10 +26,9 @@ resource "aws_db_instance" "strapi_postgres" {
 
   skip_final_snapshot    = true
   deletion_protection    = false
-
   backup_retention_period = 7
 
   tags = {
-    Name = "strapi-postgres-rds"
+    Name = "aadith-strapi-postgres-rds"
   }
 }
