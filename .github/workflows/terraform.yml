@@ -108,26 +108,26 @@ jobs:
       - name: Wait for EC2 to be ready
         if: github.event.inputs.action == 'apply'
         run: |
-          echo "⏳ Waiting for EC2 instance to initialize..."
+          echo "Waiting for EC2 instance to initialize..."
           sleep 120
 
       - name: Verify Deployment via SSH
         if: github.event.inputs.action == 'apply'
         run: |
           EC2_IP="${{ steps.outputs.outputs.ec2_ip }}"
-          echo "🔍 Verifying deployment on $EC2_IP..."
+          echo "Verifying deployment on $EC2_IP..."
           ssh -o StrictHostKeyChecking=no -i /tmp/ec2_key.pem ec2-user@$EC2_IP << 'EOF'
-            echo "📦 Docker containers:"
+            echo "Docker containers:"
             docker ps
             echo ""
-            echo "📝 Container logs (last 20 lines):"
+            echo "Container logs (last 20 lines):"
             docker logs strapi --tail 20 2>&1 || echo "Container not found or not running"
           EOF
 
       - name: Deployment Summary
         if: github.event.inputs.action == 'apply'
         run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
@@ -136,7 +136,7 @@ jobs:
           echo "| Admin Panel | ${{ steps.outputs.outputs.strapi_url }}/admin |" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Image | ${{ steps.ecr-image.outputs.image_uri }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ✅ Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment Complete!" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup SSH key
         if: always()
