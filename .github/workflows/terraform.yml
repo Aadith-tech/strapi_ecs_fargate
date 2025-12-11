@@ -1,0 +1,144 @@
+name: CD - Terraform Deploy to EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+env:
+  AWS_REGION: ap-south-1
+  TF_WORKING_DIR: terraform
+  ECR_REPOSITORY: strapi-daily-logs
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event.inputs.action }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get ECR Image URI
+        id: ecr-image
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          echo "Using image: $IMAGE_URI"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      - name: Create SSH key file
+        run: |
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > /tmp/ec2_key.pem
+          chmod 600 /tmp/ec2_key.pem
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan \
+            -var="docker_image=${{ steps.ecr-image.outputs.image_uri }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="app_keys=${{ secrets.APP_KEYS }}" \
+            -var="api_token_salt=${{ secrets.API_TOKEN_SALT }}" \
+            -var="admin_jwt_secret=${{ secrets.ADMIN_JWT_SECRET }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var='private_key_config={"key_name":"${{ secrets.EC2_KEY_NAME }}","private_key_path":"/tmp/ec2_key.pem"}' \
+            -out=tfplan
+        continue-on-error: ${{ github.event.inputs.action == 'plan' }}
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          terraform destroy -auto-approve \
+            -var="docker_image=${{ steps.ecr-image.outputs.image_uri }}" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}" \
+            -var="app_keys=${{ secrets.APP_KEYS }}" \
+            -var="api_token_salt=${{ secrets.API_TOKEN_SALT }}" \
+            -var="admin_jwt_secret=${{ secrets.ADMIN_JWT_SECRET }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var='private_key_config={"key_name":"${{ secrets.EC2_KEY_NAME }}","private_key_path":"/tmp/ec2_key.pem"}'
+
+      - name: Get Terraform Outputs
+        if: github.event.inputs.action == 'apply'
+        id: outputs
+        run: |
+          echo "ec2_ip=$(terraform output -raw ec2_public_ip)" >> $GITHUB_OUTPUT
+          echo "strapi_url=$(terraform output -raw strapi_url)" >> $GITHUB_OUTPUT
+
+      - name: Wait for EC2 to be ready
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "⏳ Waiting for EC2 instance to initialize..."
+          sleep 120
+
+      - name: Verify Deployment via SSH
+        if: github.event.inputs.action == 'apply'
+        run: |
+          EC2_IP="${{ steps.outputs.outputs.ec2_ip }}"
+          echo "🔍 Verifying deployment on $EC2_IP..."
+          ssh -o StrictHostKeyChecking=no -i /tmp/ec2_key.pem ec2-user@$EC2_IP << 'EOF'
+            echo "📦 Docker containers:"
+            docker ps
+            echo ""
+            echo "📝 Container logs (last 20 lines):"
+            docker logs strapi --tail 20 2>&1 || echo "Container not found or not running"
+          EOF
+
+      - name: Deployment Summary
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| EC2 Public IP | ${{ steps.outputs.outputs.ec2_ip }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Strapi URL | ${{ steps.outputs.outputs.strapi_url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Admin Panel | ${{ steps.outputs.outputs.strapi_url }}/admin |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Image | ${{ steps.ecr-image.outputs.image_uri }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f /tmp/ec2_key.pem
+

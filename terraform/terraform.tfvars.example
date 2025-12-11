@@ -1,0 +1,30 @@
+# Example terraform.tfvars file
+# Copy this to terraform.tfvars and fill in your values
+
+# AWS Configuration
+aws_region = "ap-south-1"
+
+# EC2 Configuration
+ami_id        = "ami-0e35ddab05955cf57"  # Amazon Linux 2023 - ap-south-1
+instance_type = "t2.small"
+
+# SSH Key (paste your public key here)
+# Generate with: ssh-keygen -t rsa -b 4096 -f strapi-key
+ssh_public_key = "ssh-rsa AAAA... your-public-key-here"
+
+# RDS Configuration
+db_instance_class = "db.t3.micro"
+db_name           = "strapidb"
+db_username       = "strapiuser"
+db_password       = "YourSecurePassword123!"  # Change this!
+
+# Docker Image (after pushing to Docker Hub)
+docker_image = "your-dockerhub-username/strapi-daily-logs:latest"
+
+# Strapi Secrets (generate new ones for production)
+# Generate with: openssl rand -base64 32
+app_keys         = "key1,key2,key3,key4"
+api_token_salt   = "your-api-token-salt"
+admin_jwt_secret = "your-admin-jwt-secret"
+jwt_secret       = "your-jwt-secret"
+
