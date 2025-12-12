@@ -37,7 +37,7 @@ jobs:
       - name: Create ECR repository if not exists
         run: |
           aws ecr describe-repositories --repository-names ${{ env.ECR_REPOSITORY }} || \
-          aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY }} --image-scanning-configuration scanOnPush=true
+          aws ecr create-repository --repository-name ${{ env.ECR_REPOSITORY }}
 
       - name: Extract metadata for Docker
         id: meta
@@ -63,21 +63,4 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Output image URI
-        id: output
-        run: |
-          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
-          echo "✅ Image pushed: $IMAGE_URI"
-
-      - name: Summary
-        run: |
-          echo "## 🐳 Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Repository | ${{ env.ECR_REPOSITORY }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Registry | ${{ steps.login-ecr.outputs.registry }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Tags | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit SHA | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
 

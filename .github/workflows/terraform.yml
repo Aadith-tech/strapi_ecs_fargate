@@ -8,9 +8,7 @@ on:
         default: 'apply'
         type: choice
         options:
-          - plan
           - apply
-          - destroy
 
 env:
   AWS_REGION: ap-south-1
@@ -60,10 +58,6 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Format Check
-        run: terraform fmt -check
-        continue-on-error: true
-
       - name: Terraform Validate
         run: terraform validate
 
@@ -79,23 +73,12 @@ jobs:
             -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
             -var='private_key_config={"key_name":"${{ secrets.EC2_KEY_NAME }}","private_key_path":"/tmp/ec2_key.pem"}' \
             -out=tfplan
-        continue-on-error: ${{ github.event.inputs.action == 'plan' }}
+
 
       - name: Terraform Apply
         if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve tfplan
 
-      - name: Terraform Destroy
-        if: github.event.inputs.action == 'destroy'
-        run: |
-          terraform destroy -auto-approve \
-            -var="docker_image=${{ steps.ecr-image.outputs.image_uri }}" \
-            -var="db_password=${{ secrets.DB_PASSWORD }}" \
-            -var="app_keys=${{ secrets.APP_KEYS }}" \
-            -var="api_token_salt=${{ secrets.API_TOKEN_SALT }}" \
-            -var="admin_jwt_secret=${{ secrets.ADMIN_JWT_SECRET }}" \
-            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
-            -var='private_key_config={"key_name":"${{ secrets.EC2_KEY_NAME }}","private_key_path":"/tmp/ec2_key.pem"}'
 
       - name: Get Terraform Outputs
         if: github.event.inputs.action == 'apply'
@@ -118,24 +101,9 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i /tmp/ec2_key.pem ec2-user@$EC2_IP << 'EOF'
             echo "Docker containers:"
             docker ps
-            echo ""
-            echo "Container logs (last 20 lines):"
             docker logs strapi --tail 20 2>&1 || echo "Container not found or not running"
           EOF
 
-      - name: Deployment Summary
-        if: github.event.inputs.action == 'apply'
-        run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| EC2 Public IP | ${{ steps.outputs.outputs.ec2_ip }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Strapi URL | ${{ steps.outputs.outputs.strapi_url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Admin Panel | ${{ steps.outputs.outputs.strapi_url }}/admin |" >> $GITHUB_STEP_SUMMARY
-          echo "| Docker Image | ${{ steps.ecr-image.outputs.image_uri }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Deployment Complete!" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup SSH key
         if: always()

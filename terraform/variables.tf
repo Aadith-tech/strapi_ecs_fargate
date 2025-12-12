@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "private_key_config" {
   type = map(string)
   default = {
-    key_name = "aadithkey"
+    key_name         = "aadithkey"
     private_key_path = "/Users/aaditharasu/downloads/aadithkey.pem"
   }
   description = "Private key configuration for SSH access"
@@ -47,40 +47,40 @@ variable "db_password" {
   description = "PostgreSQL master password"
   type        = string
   sensitive   = true
-  default = "password"
+  default     = "password"
 }
 
 variable "docker_image" {
   description = "Docker image for Strapi (Docker Hub or ECR)"
   type        = string
-  default = "aadith27/strapi-daily-logs"
+  default     = "aadith27/strapi-daily-logs"
 }
 
 variable "app_keys" {
   description = "Strapi APP_KEYS (comma-separated)"
   type        = string
   sensitive   = true
-  default = "aQrx8CqVWAT0k7ryEogiWg==,t3Lmky21wd/JMJ7WYw92qw==,MOl2ZER1hKfaJu1fLzBhdA==,4mIG873yvbrqN/KFZjtXaQ=="
+  default     = "aQrx8CqVWAT0k7ryEogiWg==,t3Lmky21wd/JMJ7WYw92qw==,MOl2ZER1hKfaJu1fLzBhdA==,4mIG873yvbrqN/KFZjtXaQ=="
 }
 
 variable "api_token_salt" {
   description = "Strapi API_TOKEN_SALT"
   type        = string
   sensitive   = true
-  default ="AJyNKy+cgMrvSJvSUFUPYg=="
+  default     = "AJyNKy+cgMrvSJvSUFUPYg=="
 }
 
 variable "admin_jwt_secret" {
   description = "Strapi ADMIN_JWT_SECRET"
   type        = string
   sensitive   = true
-  default = "uAZKUe3ldI27YASKAAnY2g=="
+  default     = "uAZKUe3ldI27YASKAAnY2g=="
 }
 
 variable "jwt_secret" {
   description = "Strapi JWT_SECRET"
   type        = string
   sensitive   = true
-  default ="fAiAjMekEOI4nDvdMViTng=="
+  default     = "fAiAjMekEOI4nDvdMViTng=="
 }
 

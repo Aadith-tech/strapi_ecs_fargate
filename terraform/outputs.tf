@@ -15,7 +15,7 @@ output "strapi_url" {
 
 output "rds_hostname" {
   description = "RDS PostgreSQL hostname"
-  value       = aws_db_instance.strapi_postgres.address
+  value       = aws_db_instance.aadith_strapi_postgres.address
 }
 
 
@@ -23,4 +23,3 @@ output "ssh_command" {
   description = "SSH command to connect to EC2"
   value       = "ssh -i /Users/aaditharasu/downloads/aadithkey.pem ec2-user@${aws_instance.strapi_server.public_ip}"
 }
-

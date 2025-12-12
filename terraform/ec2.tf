@@ -14,8 +14,8 @@ resource "aws_instance" "strapi_server" {
   user_data = templatefile("${path.module}/user_data.sh", {
     docker_image     = var.docker_image
     aws_region       = var.aws_region
-    db_host          = aws_db_instance.strapi_postgres.address
-    db_port          = aws_db_instance.strapi_postgres.port
+    db_host          = aws_db_instance.aadith_strapi_postgres.address
+    db_port          = aws_db_instance.aadith_strapi_postgres.port
     db_name          = var.db_name
     db_username      = var.db_username
     db_password      = var.db_password
@@ -29,5 +29,5 @@ resource "aws_instance" "strapi_server" {
     Name = "aadith-strapi-server"
   }
 
-  depends_on = [aws_db_instance.strapi_postgres]
+  depends_on = [aws_db_instance.aadith_strapi_postgres]
 }
