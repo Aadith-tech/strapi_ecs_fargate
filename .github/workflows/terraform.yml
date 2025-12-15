@@ -108,12 +108,6 @@ jobs:
           echo "Cluster: $CLUSTER"
           echo "Service: $SERVICE"
 
-          if [ -z "$CLUSTER" ] || [ -z "$SERVICE" ]; then
-            echo "ERROR: Missing cluster or service. Dumping Terraform outputs:"
-            terraform output || true
-            exit 1
-          fi
-
           aws ecs wait services-stable \
             --cluster "$CLUSTER" \
             --services "$SERVICE" \
@@ -122,17 +116,6 @@ jobs:
       - name: Verify Deployment
         if: github.event.inputs.action == 'apply'
         run: |
-          echo "🚀 Deployment successful!"
+          echo "Deployment successful!"
           echo "You can test your endpoint now."
           sleep 30
-
-      - name: Deployment Summary
-        if: github.event.inputs.action == 'apply'
-        run: |
-          echo "## 🎉 Deployment Complete" >> $GITHUB_STEP_SUMMARY
-          echo "**ECS Cluster:** ${{ steps.outputs.ecs_cluster }}" >> $GITHUB_STEP_SUMMARY
-          echo "**ECS Service:** ${{ steps.outputs.ecs_service }}" >> $GITHUB_STEP_SUMMARY
-          echo "### View Logs" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "aws logs tail /ecs/aadith-strapi --follow --region ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
-          echo '```'
