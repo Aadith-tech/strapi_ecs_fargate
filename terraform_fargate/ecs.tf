@@ -4,7 +4,7 @@ resource "aws_ecs_cluster" "strapi_cluster" {
   name = "aadith-strapi-cluster"
 
   setting {
-    name  = "containerInsights"
+    name  = "containerInsights" #metrics and performance metadata about your containers
     value = "enabled"
   }
 
@@ -15,7 +15,7 @@ resource "aws_ecs_cluster" "strapi_cluster" {
 
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "strapi_logs" {
-  name              = "/ecs/strapi"
+  name              = "/ecs/aadithstrapi"
   retention_in_days = 7
 
   tags = {
@@ -108,7 +108,7 @@ resource "aws_ecs_task_definition" "strapi_task" {
       ]
 
       logConfiguration = {
-        logDriver = "awslogs"
+        logDriver = "awslogs" #ECS will send stdout / stderr of the container to CloudWatch Logs.
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.strapi_logs.name
           "awslogs-region"        = var.aws_region

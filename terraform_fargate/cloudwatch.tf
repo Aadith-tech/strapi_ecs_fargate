@@ -1,8 +1,9 @@
 # Alarm: High CPU Utilization
+#Average ECS CPU utilization is greater than 80% for 2 consecutive 5-minute periods
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   alarm_name          = "aadith-strapi-high-cpu"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
+  comparison_operator = "GreaterThanThreshold" #when the alarm should trigger.
+  evaluation_periods  = 2  #Number of consecutive periods the condition must be met.
   metric_name         = "CPUUtilization"
   namespace           = "AWS/ECS"
   period              = 300  # 5 minutes
@@ -18,7 +19,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
 
   tags = {
     Name        = "aadith-strapi-high-cpu-alarm"
-    Environment = "production"
+
   }
 }
 
@@ -42,11 +43,11 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
 
   tags = {
     Name        = "aadith-strapi-high-memory-alarm"
-    Environment = "production"
+
   }
 }
 
-# Alarm: Task Count (detect if no tasks running)
+# Alarm: Task Count
 resource "aws_cloudwatch_metric_alarm" "ecs_task_count_low" {
   alarm_name          = "aadith-strapi-no-running-tasks"
   comparison_operator = "LessThanThreshold"
@@ -67,7 +68,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_task_count_low" {
 
   tags = {
     Name        = "aadith-strapi-task-count-alarm"
-    Environment = "production"
+
   }
 }
 
@@ -81,23 +82,21 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/ECS", "CPUUtilization", {
-              stat = "Average"
-              dimensions = {
-                ClusterName = aws_ecs_cluster.strapi_cluster.name
-                ServiceName = aws_ecs_service.strapi_service.name
-              }
-            }]
+            [
+              "AWS/ECS",
+              "CPUUtilization",
+              "ClusterName",
+              "${aws_ecs_cluster.strapi_cluster.name}",
+              "ServiceName",
+              "${aws_ecs_service.strapi_service.name}",
+              { stat = "Average" }
+            ]
           ]
           period = 300
-          stat   = "Average"
           region = var.aws_region
           title  = "ECS CPU Utilization"
           yAxis = {
-            left = {
-              min = 0
-              max = 100
-            }
+            left = { min = 0, max = 100 }
           }
         }
         width  = 12
@@ -105,28 +104,27 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
         x      = 0
         y      = 0
       },
+
       # Memory Utilization Widget
       {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/ECS", "MemoryUtilization", {
-              stat = "Average"
-              dimensions = {
-                ClusterName = aws_ecs_cluster.strapi_cluster.name
-                ServiceName = aws_ecs_service.strapi_service.name
-              }
-            }]
+            [
+              "AWS/ECS",
+              "MemoryUtilization",
+              "ClusterName",
+              "${aws_ecs_cluster.strapi_cluster.name}",
+              "ServiceName",
+              "${aws_ecs_service.strapi_service.name}",
+              { stat = "Average" }
+            ]
           ]
           period = 300
-          stat   = "Average"
           region = var.aws_region
           title  = "ECS Memory Utilization"
           yAxis = {
-            left = {
-              min = 0
-              max = 100
-            }
+            left = { min = 0, max = 100 }
           }
         }
         width  = 12
@@ -134,34 +132,36 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
         x      = 12
         y      = 0
       },
-      # Running Task Count Widget
+
+      # Running vs Desired Task Count Widget
       {
         type = "metric"
         properties = {
           metrics = [
-            ["ECS/ContainerInsights", "RunningTaskCount", {
-              stat = "Average"
-              dimensions = {
-                ClusterName = aws_ecs_cluster.strapi_cluster.name
-                ServiceName = aws_ecs_service.strapi_service.name
-              }
-            }],
-            [".", "DesiredTaskCount", {
-              stat = "Average"
-              dimensions = {
-                ClusterName = aws_ecs_cluster.strapi_cluster.name
-                ServiceName = aws_ecs_service.strapi_service.name
-              }
-            }]
+            [
+              "ECS/ContainerInsights",
+              "RunningTaskCount",
+              "ClusterName",
+              "${aws_ecs_cluster.strapi_cluster.name}",
+              "ServiceName",
+              "${aws_ecs_service.strapi_service.name}",
+              { stat = "Average" }
+            ],
+            [
+              "ECS/ContainerInsights",
+              "DesiredTaskCount",
+              "ClusterName",
+              "${aws_ecs_cluster.strapi_cluster.name}",
+              "ServiceName",
+              "${aws_ecs_service.strapi_service.name}",
+              { stat = "Average" }
+            ]
           ]
           period = 300
-          stat   = "Average"
           region = var.aws_region
           title  = "Task Count (Running vs Desired)"
           yAxis = {
-            left = {
-              min = 0
-            }
+            left = { min = 0 }
           }
         }
         width  = 12
@@ -169,21 +169,23 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
         x      = 0
         y      = 6
       },
+
       # Network In Widget
       {
         type = "metric"
         properties = {
           metrics = [
-            ["ECS/ContainerInsights", "NetworkRxBytes", {
-              stat = "Sum"
-              dimensions = {
-                ClusterName = aws_ecs_cluster.strapi_cluster.name
-                ServiceName = aws_ecs_service.strapi_service.name
-              }
-            }]
+            [
+              "ECS/ContainerInsights",
+              "NetworkRxBytes",
+              "ClusterName",
+              "${aws_ecs_cluster.strapi_cluster.name}",
+              "ServiceName",
+              "${aws_ecs_service.strapi_service.name}",
+              { stat = "Sum" }
+            ]
           ]
           period = 300
-          stat   = "Sum"
           region = var.aws_region
           title  = "Network In (Bytes)"
         }
@@ -192,21 +194,23 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
         x      = 12
         y      = 6
       },
+
       # Network Out Widget
       {
         type = "metric"
         properties = {
           metrics = [
-            ["ECS/ContainerInsights", "NetworkTxBytes", {
-              stat = "Sum"
-              dimensions = {
-                ClusterName = aws_ecs_cluster.strapi_cluster.name
-                ServiceName = aws_ecs_service.strapi_service.name
-              }
-            }]
+            [
+              "ECS/ContainerInsights",
+              "NetworkTxBytes",
+              "ClusterName",
+              "${aws_ecs_cluster.strapi_cluster.name}",
+              "ServiceName",
+              "${aws_ecs_service.strapi_service.name}",
+              { stat = "Sum" }
+            ]
           ]
           period = 300
-          stat   = "Sum"
           region = var.aws_region
           title  = "Network Out (Bytes)"
         }
