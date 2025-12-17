@@ -89,14 +89,8 @@ jobs:
         if: github.event.inputs.action == 'apply'
         id: outputs
         run: |
-          echo "DEBUG: terraform outputs (json):"
-          terraform output -json || true
-
-          CLUSTER=$(terraform output -raw ecs_cluster_name 2>/dev/null || true)
-          SERVICE=$(terraform output -raw ecs_service_name 2>/dev/null || true)
-
-          echo "ecs_cluster=$CLUSTER" >> $GITHUB_OUTPUT
-          echo "ecs_service=$SERVICE" >> $GITHUB_OUTPUT
+          CLUSTER=$(terraform output -raw ecs_cluster_name)
+          SERVICE=$(terraform output -raw ecs_service_name)
 
           echo "CLUSTER=$CLUSTER" >> $GITHUB_ENV
           echo "SERVICE=$SERVICE" >> $GITHUB_ENV
@@ -117,5 +111,4 @@ jobs:
         if: github.event.inputs.action == 'apply'
         run: |
           echo "Deployment successful!"
-          echo "You can test your endpoint now."
           sleep 30

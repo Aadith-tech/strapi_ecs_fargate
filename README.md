@@ -686,3 +686,4 @@ The CI pipeline creates an ECR repository named `strapi-daily-logs` in `ap-south
 - Check EC2_SSH_PRIVATE_KEY secret format (include full key with headers)
 - Ensure key matches EC2_KEY_NAME
 - Wait longer for EC2 initialization
+

@@ -9,7 +9,6 @@ resource "aws_security_group" "ecs_tasks_sg" {
     to_port         = 1337
     protocol        = "tcp"
     cidr_blocks     = ["0.0.0.0/0"]
-    # security_groups = [aws_security_group.alb_sg.id]
   }
 
   egress {
@@ -24,3 +23,4 @@ resource "aws_security_group" "ecs_tasks_sg" {
     Name = "aadith-strapi-ecs-tasks-sg"
   }
 }
+

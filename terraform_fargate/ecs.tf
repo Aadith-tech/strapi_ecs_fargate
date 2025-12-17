@@ -1,4 +1,4 @@
-
+#It's a logical grouping where your Docker containers will run
 # ECS Cluster
 resource "aws_ecs_cluster" "strapi_cluster" {
   name = "aadith-strapi-cluster"
@@ -14,15 +14,17 @@ resource "aws_ecs_cluster" "strapi_cluster" {
 }
 
 # CloudWatch Log Group
-# resource "aws_cloudwatch_log_group" "strapi_logs" {
-#   name              = "/ecs/aadith-strapi"
-#   retention_in_days = 7
-#
-#   tags = {
-#     Name = "aadith-strapi-logs"
-#   }
-# }
+resource "aws_cloudwatch_log_group" "strapi_logs" {
+  name              = "/ecs/strapi"
+  retention_in_days = 7
 
+  tags = {
+    Name = "aadith-strapi-logs"
+    Environment = "production"
+  }
+}
+
+#A Task Definition in AWS ECS is basically the blueprint that tells ECS how to run your container.
 # ECS Task Definition
 resource "aws_ecs_task_definition" "strapi_task" {
   family                   = "aadith-strapi-task"
@@ -105,22 +107,14 @@ resource "aws_ecs_task_definition" "strapi_task" {
         }
       ]
 
-      # logConfiguration = {
-      #   logDriver = "awslogs"
-      #   options = {
-      #     "awslogs-group"         = aws_cloudwatch_log_group.strapi_logs.name
-      #     "awslogs-region"        = var.aws_region
-      #     "awslogs-stream-prefix" = "ecs"
-      #   }
-      # }
-
-      # healthCheck = {
-      #   command     = ["CMD-SHELL", "curl -f http://localhost:1337/_health || exit 1"]
-      #   interval    = 30
-      #   timeout     = 5
-      #   retries     = 3
-      #   startPeriod = 60
-      # }
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.strapi_logs.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
     }
   ])
 
@@ -129,6 +123,8 @@ resource "aws_ecs_task_definition" "strapi_task" {
   }
 }
 
+# An ECS Service ensures a specified number of tasks are running at all times.
+# It launches tasks based on your task definition and keeps that number healthy and steady.
 # ECS Service
 resource "aws_ecs_service" "strapi_service" {
   name            = "aadith-strapi-service"
@@ -143,63 +139,11 @@ resource "aws_ecs_service" "strapi_service" {
     assign_public_ip = true
   }
 
-  # load_balancer {
-  #   target_group_arn = aws_lb_target_group.strapi_tg.arn
-  #   container_name   = "strapi"
-  #   container_port   = 1337
-  # }
-
   depends_on = [
-    # aws_lb_listener.strapi_listener,
     aws_db_instance.aadith_strapi_postgres
   ]
 
   tags = {
     Name = "aadith-strapi-service"
-  }
-}
-
-# Auto Scaling Target
-resource "aws_appautoscaling_target" "ecs_target" {
-  max_capacity       = 3
-  min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.strapi_cluster.name}/${aws_ecs_service.strapi_service.name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
-
-# Auto Scaling Policy - CPU Based
-resource "aws_appautoscaling_policy" "ecs_cpu_policy" {
-  name               = "aadith-strapi-cpu-autoscaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    target_value       = 70.0
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
-  }
-}
-
-# Auto Scaling Policy - Memory Based
-resource "aws_appautoscaling_policy" "ecs_memory_policy" {
-  name               = "aadith-strapi-memory-autoscaling"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = aws_appautoscaling_target.ecs_target.resource_id
-  scalable_dimension = aws_appautoscaling_target.ecs_target.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.ecs_target.service_namespace
-
-  target_tracking_scaling_policy_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
-    }
-    target_value       = 80.0
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 60
   }
 }

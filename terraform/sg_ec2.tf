@@ -39,3 +39,26 @@ resource "aws_security_group" "strapi_sg" {
   }
 }
 
+
+
+
+resource "aws_iam_role" "ecs_task_role" {
+  name = "aadith-strapi-ecs-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "aadith-strapi-ecs-task-role"
+  }
+}
