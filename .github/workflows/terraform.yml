@@ -15,7 +15,7 @@ on:
 env:
   AWS_REGION: ap-south-1
   TF_WORKING_DIR: terraform_fargate
-  ECR_REPOSITORY: strapi-daily-logs
+  ECR_REPOSITORY: aadith-strapi-daily-logs
 
 jobs:
   terraform:
