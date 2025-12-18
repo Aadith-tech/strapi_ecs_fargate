@@ -8,7 +8,7 @@ on:
 
 env:
   AWS_REGION: ap-south-1
-  ECR_REPOSITORY: strapi-daily-logs
+  ECR_REPOSITORY: aadith-strapi-daily-logs
 
 jobs:
   build-and-push:
