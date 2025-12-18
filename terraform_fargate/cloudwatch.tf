@@ -77,7 +77,6 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
 
   dashboard_body = jsonencode({
     widgets = [
-      # CPU Utilization Widget
       {
         type = "metric"
         properties = {
@@ -95,17 +94,13 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
           period = 300
           region = var.aws_region
           title  = "ECS CPU Utilization"
-          yAxis = {
-            left = { min = 0, max = 100 }
-          }
+          yAxis = { left = { min = 0, max = 100 } }
         }
         width  = 12
         height = 6
         x      = 0
         y      = 0
       },
-
-      # Memory Utilization Widget
       {
         type = "metric"
         properties = {
@@ -123,17 +118,13 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
           period = 300
           region = var.aws_region
           title  = "ECS Memory Utilization"
-          yAxis = {
-            left = { min = 0, max = 100 }
-          }
+          yAxis = { left = { min = 0, max = 100 } }
         }
         width  = 12
         height = 6
         x      = 12
         y      = 0
       },
-
-      # Running vs Desired Task Count Widget
       {
         type = "metric"
         properties = {
@@ -160,17 +151,13 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
           period = 300
           region = var.aws_region
           title  = "Task Count (Running vs Desired)"
-          yAxis = {
-            left = { min = 0 }
-          }
+          yAxis = { left = { min = 0 } }
         }
         width  = 12
         height = 6
         x      = 0
         y      = 6
       },
-
-      # Network In Widget
       {
         type = "metric"
         properties = {
@@ -188,14 +175,13 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
           period = 300
           region = var.aws_region
           title  = "Network In (Bytes)"
+          yAxis = { left = { min = 0 } }
         }
         width  = 12
         height = 6
         x      = 12
         y      = 6
       },
-
-      # Network Out Widget
       {
         type = "metric"
         properties = {
@@ -213,35 +199,31 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
           period = 300
           region = var.aws_region
           title  = "Network Out (Bytes)"
+          yAxis = { left = { min = 0 } }
         }
         width  = 12
         height = 6
         x      = 0
         y      = 12
       },
-
-      # ALB Response Time Widget
       {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", {
-              stat = "Average"
-              dimensions = {
-                LoadBalancer = aws_lb.strapi_alb.arn_suffix
-                TargetGroup  = aws_lb_target_group.strapi_tg.arn_suffix
-              }
-            }]
+            [
+              "AWS/ApplicationELB",
+              "TargetResponseTime",
+              "LoadBalancer",
+              "${aws_lb.strapi_alb.arn_suffix}",
+              "TargetGroup",
+              "${aws_lb_target_group.strapi_tg.arn_suffix}",
+              { stat = "Average" }
+            ]
           ]
           period = 300
-          stat   = "Average"
           region = var.aws_region
           title  = "ALB Response Time (seconds)"
-          yAxis = {
-            left = {
-              min = 0
-            }
-          }
+          yAxis = { left = { min = 0 } }
         }
         width  = 12
         height = 6
