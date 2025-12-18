@@ -218,8 +218,38 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
         height = 6
         x      = 0
         y      = 12
+      },
+
+      # ALB Response Time Widget
+      {
+        type = "metric"
+        properties = {
+          metrics = [
+            ["AWS/ApplicationELB", "TargetResponseTime", {
+              stat = "Average"
+              dimensions = {
+                LoadBalancer = aws_lb.strapi_alb.arn_suffix
+                TargetGroup  = aws_lb_target_group.strapi_tg.arn_suffix
+              }
+            }]
+          ]
+          period = 300
+          stat   = "Average"
+          region = var.aws_region
+          title  = "ALB Response Time (seconds)"
+          yAxis = {
+            left = {
+              min = 0
+            }
+          }
+        }
+        width  = 12
+        height = 6
+        x      = 0
+        y      = 18
       }
     ]
   })
 }
+
 

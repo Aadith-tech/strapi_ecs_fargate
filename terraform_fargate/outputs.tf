@@ -28,3 +28,13 @@ output "cloudwatch_logs_url" {
   description = "URL to CloudWatch Logs"
   value       = "https://console.aws.amazon.com/cloudwatch/home?region=${var.aws_region}#logsV2:log-groups/log-group/${replace(aws_cloudwatch_log_group.strapi_logs.name, "/", "$252F")}"
 }
+
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = aws_lb.strapi_alb.dns_name
+}
+
+output "strapi_url" {
+  description = "URL to access Strapi application"
+  value       = "http://${aws_lb.strapi_alb.dns_name}"
+}

@@ -4,7 +4,7 @@ resource "aws_ecs_cluster" "strapi_cluster" {
   name = "aadith-strapi-cluster"
 
   setting {
-    name  = "containerInsights" #metrics and performance metadata about your containers
+    name  = "containerInsights" # metrics and performance metadata about your containers
     value = "enabled"
   }
 
@@ -20,7 +20,6 @@ resource "aws_cloudwatch_log_group" "strapi_logs" {
 
   tags = {
     Name = "aadith-strapi-logs"
-    Environment = "production"
   }
 }
 
@@ -112,8 +111,15 @@ resource "aws_ecs_task_definition" "strapi_task" {
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.strapi_logs.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "ecs"
+          "awslogs-stream-prefix" = "ecs" # ecs/containerID
         }
+      }
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:1337/_health || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
       }
     }
   ])
@@ -130,7 +136,7 @@ resource "aws_ecs_service" "strapi_service" {
   name            = "aadith-strapi-service"
   cluster         = aws_ecs_cluster.strapi_cluster.id
   task_definition = aws_ecs_task_definition.strapi_task.arn
-  desired_count   = 1
+  desired_count   = 2
   launch_type     = "FARGATE"
 
   network_configuration {
@@ -138,8 +144,14 @@ resource "aws_ecs_service" "strapi_service" {
     security_groups  = [aws_security_group.ecs_tasks_sg.id]
     assign_public_ip = true
   }
+  load_balancer {
+    target_group_arn = aws_lb_target_group.strapi_tg.arn  # ← Links to Target Group
+    container_name   = "strapi"                            # ← Container name from task definition
+    container_port   = 1337                                # ← Port Strapi listens on
+  }
 
   depends_on = [
+    aws_lb_listener.strapi_listener,
     aws_db_instance.aadith_strapi_postgres
   ]
 
