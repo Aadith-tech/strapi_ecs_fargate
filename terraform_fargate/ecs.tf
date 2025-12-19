@@ -1,10 +1,10 @@
-#It's a logical grouping where your Docker containers will run
+#It's a logical grouping of ec2 where your containers will run
 # ECS Cluster
 resource "aws_ecs_cluster" "strapi_cluster" {
   name = "aadith-strapi-cluster"
 
   setting {
-    name  = "containerInsights" # metrics and performance metadata about your containers
+    name  = "containerInsights" # metrics about your containers
     value = "enabled"
   }
 
@@ -23,12 +23,25 @@ resource "aws_cloudwatch_log_group" "strapi_logs" {
   }
 }
 
+
+resource "aws_ecs_cluster_capacity_providers" "strapi_spot" {
+  cluster_name = aws_ecs_cluster.strapi_cluster.name
+
+  capacity_providers = ["FARGATE_SPOT"]
+
+  default_capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 1
+  }
+}
+
+
 #A Task Definition in AWS ECS is basically the blueprint that tells ECS how to run your container.
 # ECS Task Definition
 resource "aws_ecs_task_definition" "strapi_task" {
   family                   = "aadith-strapi-task"
   network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
+  requires_compatibilities = ["FARGATE"] # launch env
   cpu                      = "2048"  # 2 vCPU
   memory                   = "4096"  # 4 GB
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
@@ -111,7 +124,7 @@ resource "aws_ecs_task_definition" "strapi_task" {
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.strapi_logs.name
           "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "ecs" # ecs/containerID
+          "awslogs-stream-prefix" = "ecs" # ecs/TaskID
         }
       }
       healthCheck = {
@@ -137,7 +150,11 @@ resource "aws_ecs_service" "strapi_service" {
   cluster         = aws_ecs_cluster.strapi_cluster.id
   task_definition = aws_ecs_task_definition.strapi_task.arn
   desired_count   = 2
-  launch_type     = "FARGATE"
+
+  capacity_provider_strategy {
+    capacity_provider = "FARGATE_SPOT"
+    weight            = 1
+  }
 
   network_configuration {
     subnets          = data.aws_subnets.default.ids
@@ -145,12 +162,13 @@ resource "aws_ecs_service" "strapi_service" {
     assign_public_ip = true
   }
   load_balancer {
-    target_group_arn = aws_lb_target_group.strapi_tg.arn  # ← Links to Target Group
-    container_name   = "strapi"                            # ← Container name from task definition
-    container_port   = 1337                                # ← Port Strapi listens on
+    target_group_arn = aws_lb_target_group.strapi_tg.arn  # Links to Target Group
+    container_name   = "strapi"                            # Container name from task definition
+    container_port   = 1337                                # Port Strapi listens on
   }
 
   depends_on = [
+    aws_ecs_cluster_capacity_providers.strapi_spot,
     aws_lb_listener.strapi_listener,
     aws_db_instance.aadith_strapi_postgres
   ]
