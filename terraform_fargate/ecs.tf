@@ -157,7 +157,7 @@ resource "aws_ecs_service" "strapi_service" {
   }
 
   network_configuration {
-    subnets          = data.aws_subnets.default.ids
+    subnets          = local.subnets
     security_groups  = [aws_security_group.ecs_tasks_sg.id]
     assign_public_ip = true
   }

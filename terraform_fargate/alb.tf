@@ -5,7 +5,7 @@ resource "aws_lb" "strapi_alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = data.aws_subnets.default.ids
+  subnets            = local.subnets
 
   enable_deletion_protection = false
 

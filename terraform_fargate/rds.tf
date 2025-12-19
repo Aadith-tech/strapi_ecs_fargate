@@ -1,6 +1,6 @@
 resource "aws_db_subnet_group" "strapi_db_subnet" {
   name       = "aadith-strapi-db-subnet-group"
-  subnet_ids = data.aws_subnets.default.ids
+  subnet_ids = local.subnets
 
   tags = {
     Name = "aadith-strapi-db-subnet-group"
