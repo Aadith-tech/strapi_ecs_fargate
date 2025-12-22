@@ -1,9 +1,3 @@
-resource "aws_codedeploy_app" "ecs_app" {
-  name             = "strapi-codedeploy-app"
-  compute_platform = "ECS"
-}
-
-
 resource "aws_codedeploy_deployment_group" "ecs_dg" {
   app_name              = aws_codedeploy_app.ecs_app.name
   deployment_group_name = "strapi-ecs-dg"
@@ -14,6 +8,17 @@ resource "aws_codedeploy_deployment_group" "ecs_dg" {
   auto_rollback_configuration {
     enabled = true
     events  = ["DEPLOYMENT_FAILURE"]
+  }
+
+  blue_green_deployment_config {
+    deployment_ready_option {
+      action_on_timeout = "CONTINUE_DEPLOYMENT"
+    }
+
+    terminate_blue_instances_on_deployment_success {
+      action                           = "TERMINATE"
+      termination_wait_time_in_minutes = 5
+    }
   }
 
   ecs_service {
@@ -37,4 +42,3 @@ resource "aws_codedeploy_deployment_group" "ecs_dg" {
     }
   }
 }
-
