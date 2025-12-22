@@ -20,7 +20,9 @@ resource "aws_codedeploy_deployment_group" "ecs_dg" {
     events  = ["DEPLOYMENT_FAILURE"]
   }
 
+
   blue_green_deployment_config {
+    # When green environment is ready, automatically continue (don't wait for manual approval)
     deployment_ready_option {
       action_on_timeout = "CONTINUE_DEPLOYMENT"
     }
