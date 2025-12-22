@@ -15,8 +15,33 @@ resource "aws_lb" "strapi_alb" {
 }
 
 # Target Group
-resource "aws_lb_target_group" "strapi_tg" {
-  name        = "aadith-strapi-tg"
+resource "aws_lb_target_group" "strapi_tg_blue" {
+  name        = "aadith-strapi-tg-blue"
+  port        = 1337
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.default.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    path                = "/_health"
+    protocol            = "HTTP"
+    matcher             = "200,204"
+  }
+
+  deregistration_delay = 30
+
+  tags = {
+    Name = "aadith-strapi-tg"
+  }
+}
+
+resource "aws_lb_target_group" "strapi_tg_green" {
+  name        = "aadith-strapi-tg-green"
   port        = 1337
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
@@ -48,7 +73,7 @@ resource "aws_lb_listener" "strapi_listener" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.strapi_tg.arn
+    target_group_arn = aws_lb_target_group.strapi_tg_blue.arn
   }
 
   tags = {

@@ -74,6 +74,32 @@ jobs:
         if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve tfplan
 
+
+      - name: Trigger CodeDeploy Deployment
+        run: |
+          TASK_DEF_ARN=$(terraform output -raw ecs_task_definition_arn)
+
+          aws deploy create-deployment \
+            --application-name strapi-codedeploy-app \
+            --deployment-group-name strapi-ecs-dg \
+            --revision revisionType=AppSpecContent,appSpecContent="{
+              \"version\": 1,
+              \"Resources\": [{
+                \"TargetService\": {
+                  \"Type\": \"AWS::ECS::Service\",
+                  \"Properties\": {
+                    \"TaskDefinition\": \"$TASK_DEF_ARN\",
+                    \"LoadBalancerInfo\": {
+                      \"ContainerName\": \"strapi\",
+                      \"ContainerPort\": 1337
+                    }
+                  }
+                }
+              }]
+            }" \
+            --region $AWS_REGION
+      
+
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
         run: |

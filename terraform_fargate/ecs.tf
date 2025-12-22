@@ -23,27 +23,14 @@ resource "aws_cloudwatch_log_group" "strapi_logs" {
   }
 }
 
-
-resource "aws_ecs_cluster_capacity_providers" "strapi_spot" {
-  cluster_name = aws_ecs_cluster.strapi_cluster.name
-
-  capacity_providers = ["FARGATE_SPOT"]
-
-  default_capacity_provider_strategy {
-    capacity_provider = "FARGATE_SPOT"
-    weight            = 1
-  }
-}
-
-
 #A Task Definition in AWS ECS is basically the blueprint that tells ECS how to run your container.
 # ECS Task Definition
 resource "aws_ecs_task_definition" "strapi_task" {
   family                   = "aadith-strapi-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"] # launch env
-  cpu                      = "2048"  # 2 vCPU
-  memory                   = "4096"  # 4 GB
+  cpu                      = "1024"  # 1 vCPU
+  memory                   = "2048"  # 2 GB
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn
 
@@ -145,30 +132,26 @@ resource "aws_ecs_task_definition" "strapi_task" {
 # An ECS Service ensures a specified number of tasks are running at all times.
 # It launches tasks based on your task definition and keeps that number healthy and steady.
 # ECS Service
+
 resource "aws_ecs_service" "strapi_service" {
   name            = "aadith-strapi-service"
   cluster         = aws_ecs_cluster.strapi_cluster.id
   task_definition = aws_ecs_task_definition.strapi_task.arn
   desired_count   = 2
-
-  capacity_provider_strategy {
-    capacity_provider = "FARGATE_SPOT"
-    weight            = 1
-  }
+  launch_type = "FARGATE"
 
   network_configuration {
     subnets          = local.subnets
     security_groups  = [aws_security_group.ecs_tasks_sg.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
   load_balancer {
-    target_group_arn = aws_lb_target_group.strapi_tg.arn  # Links to Target Group
-    container_name   = "strapi"                            # Container name from task definition
-    container_port   = 1337                                # Port Strapi listens on
+    target_group_arn = aws_lb_target_group.strapi_tg_blue.arn  # Links to Target Group
+    container_name   = "strapi"                                # Container name from task definition
+    container_port   = 1337                                    # Port Strapi listens on
   }
 
   depends_on = [
-    aws_ecs_cluster_capacity_providers.strapi_spot,
     aws_lb_listener.strapi_listener,
     aws_db_instance.aadith_strapi_postgres
   ]
