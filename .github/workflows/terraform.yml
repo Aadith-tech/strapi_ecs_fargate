@@ -120,18 +120,6 @@ jobs:
           echo "CLUSTER=$CLUSTER" >> $GITHUB_ENV
           echo "SERVICE=$SERVICE" >> $GITHUB_ENV
 
-      - name: Wait for ECS Service to be stable
-        if: github.event.inputs.action == 'apply'
-        run: |
-          echo "Waiting for ECS service to be stable..."
-          echo "Cluster: $CLUSTER"
-          echo "Service: $SERVICE"
-
-          aws ecs wait services-stable \
-            --cluster "$CLUSTER" \
-            --services "$SERVICE" \
-            --region $AWS_REGION
-
       - name: Verify Deployment
         if: github.event.inputs.action == 'apply'
         run: |
