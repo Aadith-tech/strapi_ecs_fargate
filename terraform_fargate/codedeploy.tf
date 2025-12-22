@@ -1,5 +1,5 @@
 resource "aws_codedeploy_deployment_group" "ecs_dg" {
-  app_name              = aws_codedeploy_app.ecs_app.name
+  app_name              = aws_codedeploy_app
   deployment_group_name = "strapi-ecs-dg"
   service_role_arn      = aws_iam_role.code_deploy_role.arn
 
