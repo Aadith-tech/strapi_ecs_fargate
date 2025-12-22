@@ -80,20 +80,23 @@ jobs:
         run: |
           TASK_DEF_ARN=$(terraform output -raw ecs_task_definition_arn)
   
-          cat > appspec.json <<EOF
-          {
-            "revisionType": "AppSpecContent",
-            "appSpecContent": {
-              "content": "{\"version\":1,\"Resources\":[{\"TargetService\":{\"Type\":\"AWS::ECS::Service\",\"Properties\":{\"TaskDefinition\":\"$TASK_DEF_ARN\",\"LoadBalancerInfo\":{\"ContainerName\":\"strapi\",\"ContainerPort\":1337}}}}]}"
+            cat > deploy.json <<EOF
+            {
+              "applicationName": "strapi-codedeploy-app",
+              "deploymentGroupName": "strapi-ecs-dg",
+              "revision": {
+                "revisionType": "AppSpecContent",
+                "appSpecContent": {
+                  "content": "{\\"version\\":1,\\"Resources\\":[{\\"TargetService\\":{\\"Type\\":\\"AWS::ECS::Service\\",\\"Properties\\":{\\"TaskDefinition\\":\\"${TASK_DEF_ARN}\\",\\"LoadBalancerInfo\\":{\\"ContainerName\\":\\"strapi\\",\\"ContainerPort\\":1337}}}}]}"
+              }
             }
           }
           EOF
           
           aws deploy create-deployment \
-          --cli-input-json file://appspec.json \
-          --application-name strapi-codedeploy-app \
-          --deployment-group-name strapi-ecs-dg \
-          --region $AWS_REGION
+            --cli-input-json file://deploy.json \
+            --region $AWS_REGION
+
               
 
       - name: Terraform Destroy
