@@ -216,7 +216,7 @@ resource "aws_cloudwatch_dashboard" "strapi_dashboard" {
               "LoadBalancer",
               "${aws_lb.strapi_alb.arn_suffix}",
               "TargetGroup",
-              "${aws_lb_target_group.strapi_tg.arn_suffix}",
+              "${aws_lb_target_group.strapi_tg_blue.arn_suffix}",
               { stat = "Average" }
             ]
           ]
