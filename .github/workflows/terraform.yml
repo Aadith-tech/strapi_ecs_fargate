@@ -76,6 +76,7 @@ jobs:
 
 
       - name: Trigger CodeDeploy Deployment
+        if: github.event.inputs.action == 'apply'
         run: |
           TASK_DEF_ARN=$(terraform output -raw ecs_task_definition_arn)
 
