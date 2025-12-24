@@ -96,8 +96,54 @@ jobs:
           aws deploy create-deployment \
             --cli-input-json file://deploy.json \
             --region $AWS_REGION
+          
 
-              
+      - name: Monitor CodeDeploy Deployment Status
+        if: github.event.inputs.action == 'apply'
+        run: |
+          echo "Waiting for deployment to start..."
+          sleep 10
+          
+          # Get the latest deployment ID
+          DEPLOYMENT_ID=$(aws deploy list-deployments \
+            --application-name strapi-codedeploy-app \
+            --deployment-group-name strapi-ecs-dg \
+            --query 'deployments[0]' \
+            --output text \
+            --region $AWS_REGION)
+          
+          echo "Monitoring CodeDeploy Deployment: $DEPLOYMENT_ID"
+          
+          # Monitor deployment status
+          while true; do
+            DEPLOYMENT_INFO=$(aws deploy get-deployment \
+              --deployment-id $DEPLOYMENT_ID \
+              --region $AWS_REGION)
+          
+            STATUS=$(echo $DEPLOYMENT_INFO | jq -r '.deploymentInfo.status')
+          
+            echo "Status: $STATUS"
+          
+            case $STATUS in
+              "Succeeded")
+                echo "Deployment successful!"
+                exit 0
+                ;;
+              "Failed"|"Stopped")
+                echo "Deployment failed or stopped!"
+                echo "Rollback should be automatic based on your CodeDeploy config"
+                exit 1
+                ;;
+              "InProgress"|"Queued"|"Created"|"Ready")
+                echo "Deployment in progress... checking again in 30 seconds"
+                sleep 30
+                ;;
+              *)
+                echo "Unknown status: $STATUS"
+                sleep 30
+                ;;
+            esac
+          done
 
       - name: Terraform Destroy
         if: github.event.inputs.action == 'destroy'
