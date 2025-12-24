@@ -687,3 +687,467 @@ The CI pipeline creates an ECR repository named `strapi-daily-logs` in `ap-south
 - Ensure key matches EC2_KEY_NAME
 - Wait longer for EC2 initialization
 
+# Strapi CI/CD & Advanced Deployment Documentation
+
+## Table of Contents
+1. [GitHub Actions CI/CD Setup](#github-actions-cicd-setup)
+2. [ECS Fargate Deployment](#ecs-fargate-deployment)
+3. [Fargate Spot Configuration](#fargate-spot-configuration)
+4. [Blue/Green Deployment with CodeDeploy](#bluegreen-deployment-with-codedeploy)
+5. [CloudWatch Monitoring](#cloudwatch-monitoring)
+
+---
+
+## 🚀 GitHub Actions CI/CD Setup
+
+### Overview
+This project implements a two-stage CI/CD pipeline that automates the build and deployment process. The CI pipeline automatically builds and pushes Docker images when code is pushed to the main branch, while the CD pipeline allows manual triggering of Terraform deployments.
+
+### CI Pipeline (Continuous Integration)
+
+**Purpose**: Automatically build and push Docker images on code changes.
+
+**Workflow File**: `.github/workflows/ci.yml`
+
+**Triggers**:
+- Automatic: Push to `main` branch
+- Manual: workflow_dispatch
+
+**Process**:
+1. Code is pushed to the main branch
+2. GitHub Actions checks out the repository
+3. Configures AWS credentials from GitHub secrets
+4. Logs into Docker Hub or Amazon ECR
+5. Builds Docker image with linux/amd64 platform (EC2 compatible)
+6. Pushes image with two tags:
+    - `latest` - Always points to most recent build
+    - `<commit-sha>` - Specific version for rollback capability
+7. Saves image tag as output for CD pipeline
+
+**Key Feature**: Image tag output allows CD pipeline to pull the exact version that was just built.
+
+### CD Pipeline (Continuous Deployment)
+
+**Purpose**: Deploy the updated Docker image to EC2/ECS infrastructure using Terraform.
+
+**Workflow File**: `.github/workflows/terraform.yml`
+
+**Triggers**:
+- Manual only (workflow_dispatch)
+- Action options: plan, apply, destroy
+
+**Process**:
+1. Manually triggered from GitHub Actions interface
+2. Checks out repository code
+3. Configures AWS credentials
+4. Sets up Terraform
+5. Retrieves latest image tag from ECR
+6. Runs `terraform init` to initialize backend
+7. Runs `terraform validate` to check configuration
+8. Runs `terraform plan` to preview changes
+9. If "apply" selected, runs `terraform apply` to deploy
+10. SSH into EC2 instance to verify deployment
+11. Checks Docker container status
+12. Outputs deployment summary with public IP
+
+**Deployment Verification**:
+- Automated SSH connection to verify container is running
+- Checks Docker logs for errors
+- Tests HTTP endpoint availability
+- Provides public IP for manual browser verification
+
+### Required GitHub Secrets
+
+All sensitive data is stored as GitHub repository secrets:
+
+- **AWS_ACCESS_KEY_ID** - AWS IAM access key for API access
+- **AWS_SECRET_ACCESS_KEY** - AWS IAM secret key
+- **EC2_SSH_PRIVATE_KEY** - Private SSH key to access EC2 instances
+- **EC2_KEY_NAME** - Name of the AWS key pair
+- **DB_PASSWORD** - PostgreSQL database password
+- **APP_KEYS** - Strapi application keys (4 comma-separated keys)
+- **API_TOKEN_SALT** - Strapi API token salt
+- **ADMIN_JWT_SECRET** - Strapi admin JWT secret
+- **JWT_SECRET** - Strapi JWT secret
+
+Generate Strapi secrets using: `openssl rand -base64 16`
+
+### Deployment Workflow
+
+**Step 1**: Developer pushes code to main branch → CI pipeline automatically builds and pushes new Docker image
+
+**Step 2**: DevOps/Admin manually triggers CD pipeline → Terraform deploys updated infrastructure with new image
+
+**Step 3**: Automated verification confirms deployment success → Public IP provided for access
+
+### Access After Deployment
+
+Once deployment completes, access Strapi at: `http://<EC2_PUBLIC_IP>:1337/admin`
+
+SSH access for troubleshooting: `ssh -i ~/.ssh/strapi-key ec2-user@<EC2_PUBLIC_IP>`
+
+---
+
+## 🐳 ECS Fargate Deployment
+
+### Overview
+Deploy Strapi as a fully managed containerized application on AWS ECS Fargate. This eliminates the need to manage EC2 instances, provides automatic scaling, and integrates with Application Load Balancer for high availability.
+
+### Why ECS Fargate?
+
+**Benefits over EC2**:
+- No server management required
+- Automatic scaling based on demand
+- Pay only for resources used (per second)
+- Better fault tolerance with multiple tasks
+- Automatic task replacement if failures occur
+- Integration with AWS services (CloudWatch, ALB, IAM)
+
+### Architecture Components
+
+**ECS Cluster**: A logical grouping of ECS tasks and services. Container Insights enabled for monitoring.
+
+**ECS Service**: Maintains desired number of running tasks (e.g., 2 tasks for high availability). Integrates with Application Load Balancer for traffic distribution.
+
+**ECS Task Definition**: Blueprint for containers including CPU (512 = 0.5 vCPU), memory (1024 MB = 1 GB), container image from ECR, environment variables for database connection, port mappings (1337), and CloudWatch logs configuration.
+
+**Application Load Balancer (ALB)**: Distributes incoming traffic across multiple ECS tasks. Performs health checks on /admin endpoint. Uses target group with IP target type for Fargate. Listens on port 80 (HTTP).
+
+**Target Group**: Routes traffic to ECS tasks on port 1337. Health check monitors application availability. Deregisters unhealthy tasks automatically.
+
+**RDS PostgreSQL**: Managed database service for Strapi data. Connected via security groups allowing only ECS task access.
+
+### Network Configuration
+
+Uses AWS VPC with public and private subnets. ECS tasks run in private subnets with NAT Gateway for internet access. ALB runs in public subnets for user access. Security groups control traffic between components.
+
+### Task Execution
+
+**Launch Type**: FARGATE (serverless, no EC2 management)
+
+**Network Mode**: awsvpc (each task gets its own ENI and IP address)
+
+**Task Count**: Minimum 2 for high availability
+
+**Auto-scaling**: Configured based on CPU/memory utilization
+
+### IAM Roles
+
+**Task Execution Role**: Allows ECS to pull images from ECR, push logs to CloudWatch, and retrieve secrets from Secrets Manager.
+
+**Task Role**: Gives containers permissions to access AWS services (if needed).
+
+### Deployment Process
+
+Terraform creates all required resources (cluster, service, task definition, ALB, target groups, security groups). ECS service launches initial tasks in private subnets. Tasks pull Docker image from ECR. ALB begins routing traffic to healthy tasks. CloudWatch collects logs and metrics.
+
+### Accessing the Application
+
+Once deployed, access Strapi via ALB DNS name: `http://<ALB_DNS_NAME>/admin`
+
+No direct access to tasks required (unlike EC2 SSH).
+
+---
+
+## 💡 Fargate Spot Configuration
+
+### Overview
+AWS Fargate Spot allows you to run ECS tasks at up to 70% discount compared to regular Fargate pricing. Suitable for fault-tolerant workloads where tasks can be interrupted.
+
+### What is Fargate Spot?
+
+Fargate Spot uses spare AWS compute capacity. AWS can interrupt tasks with 2-minute warning when capacity is needed. Best for stateless applications, background processing, and development/test environments.
+
+### Cost Savings
+
+**Regular Fargate**: $0.04048 per vCPU per hour + $0.004445 per GB per hour
+
+**Fargate Spot**: Up to 70% cheaper
+
+**Example**: For 0.5 vCPU + 1 GB memory running 24/7, regular Fargate costs ~$30/month, while Fargate Spot costs ~$9/month.
+
+### Implementation
+
+Modify ECS service capacity provider strategy to use Fargate Spot. Set base capacity on regular Fargate for guaranteed availability. Use Fargate Spot for additional tasks beyond base.
+
+**Configuration**:
+- Base: 1 task on FARGATE (always available)
+- Additional: Tasks on FARGATE_SPOT (cost-optimized)
+
+**Capacity Provider Strategy**:
+- FARGATE: Base = 1, Weight = 1 (guaranteed task)
+- FARGATE_SPOT: Base = 0, Weight = 4 (80% of additional tasks use Spot)
+
+### When to Use Fargate Spot
+
+**Good for**:
+- Development and testing environments
+- Stateless applications (like Strapi with RDS backend)
+- Non-critical workloads
+- Applications with graceful shutdown handling
+
+**Not recommended for**:
+- Production workloads requiring 100% uptime SLA
+- Applications storing critical state in containers
+- Real-time processing without retry logic
+
+### Handling Interruptions
+
+AWS sends SIGTERM signal 2 minutes before interruption. Application should handle graceful shutdown. ECS automatically launches replacement task. For Strapi, database state is preserved in RDS, so new task resumes normally.
+
+### Configuration in Terraform
+
+Update ECS service to use capacity provider strategy instead of launch type. Create capacity providers for FARGATE and FARGATE_SPOT. Configure weights to balance cost and availability.
+
+---
+
+## 🔄 Blue/Green Deployment with CodeDeploy
+
+### Overview
+Blue/Green deployment strategy enables zero-downtime deployments with automatic rollback capability. AWS CodeDeploy manages the deployment process, gradually shifting traffic from old version (Blue) to new version (Green).
+
+### What is Blue/Green Deployment?
+
+**Blue Environment**: Current production version running and serving traffic.
+
+**Green Environment**: New version deployed in parallel, tested before receiving traffic.
+
+**Traffic Shift**: Load balancer gradually redirects users from Blue to Green.
+
+**Rollback**: If issues detected, instantly switch back to Blue.
+
+**Cleanup**: Once Green is stable, terminate Blue environment.
+
+### Why Blue/Green for Strapi?
+
+**Zero Downtime**: Users never experience service interruption during deployments.
+
+**Safe Testing**: New version runs in production environment before receiving traffic.
+
+**Instant Rollback**: Revert to previous version in seconds if problems occur.
+
+**Gradual Rollout**: Canary deployment tests new version with small percentage of traffic first.
+
+### AWS Resources Required
+
+**ECS Cluster and Service**: Runs Strapi containers on Fargate.
+
+**Application Load Balancer (ALB)**: Routes traffic between Blue and Green environments.
+
+**Two Target Groups**:
+- Blue Target Group: Points to current version containers
+- Green Target Group: Points to new version containers
+
+**ALB Listener**: Switches between target groups during deployment.
+
+**CodeDeploy Application**: Named "strapi-codedeploy-app", configured for ECS platform.
+
+**CodeDeploy Deployment Group**: Manages deployment process and rollback configuration.
+
+### Deployment Configuration
+
+**Strategy**: CodeDeployDefault.ECSCanary10Percent5Minutes
+
+**How it works**:
+1. Deploy new version to Green target group
+2. Shift 10% of traffic to Green
+3. Monitor for 5 minutes for errors
+4. If successful, shift remaining 90% to Green
+5. If failures detected, automatic rollback to Blue
+
+**Alternative Strategies**:
+- ECSAllAtOnce: Immediate full traffic switch (faster but riskier)
+- ECSLinear10PercentEvery1Minute: Gradual 10% increments every minute
+- ECSCanary10Percent30Minutes: Longer monitoring period for safety
+
+### Auto Rollback Configuration
+
+Automatic rollback triggers on:
+- Deployment failure
+- CloudWatch alarm breach (high error rate, CPU, memory)
+- Target group health check failures
+
+**Rollback Process**: Traffic instantly switches back to Blue target group. Green environment terminated. No user impact during rollback.
+
+### Load Balancer Configuration
+
+**Production Traffic Route**: ALB listener on port 80 (HTTP).
+
+**Target Groups**:
+- strapi-tg-blue: Current production tasks
+- strapi-tg-green: New deployment tasks
+
+**Health Check**: Monitors /admin endpoint to verify application availability.
+
+**Target Type**: IP (required for Fargate awsvpc networking).
+
+### Deployment Process
+
+**Step 1**: GitHub Actions CI pipeline builds new Docker image and pushes to ECR.
+
+**Step 2**: Create new ECS Task Definition with updated image tag.
+
+**Step 3**: Trigger CodeDeploy deployment with AppSpec content.
+
+**Step 4**: CodeDeploy creates Green environment by launching new tasks with new task definition and registering them to Green target group.
+
+**Step 5**: Health checks confirm Green tasks are healthy.
+
+**Step 6**: Canary shift begins - 10% of traffic routes to Green for 5 minutes monitoring.
+
+**Step 7**: If no errors detected, remaining 90% of traffic shifts to Green.
+
+**Step 8**: Wait 5 minutes for final confirmation.
+
+**Step 9**: Terminate Blue environment (old tasks) to save costs.
+
+**If failures occur at any step**: Auto rollback switches traffic back to Blue, terminates Green environment, zero user impact.
+
+### AppSpec Configuration
+
+The AppSpec defines deployment instructions for CodeDeploy. Specifies which ECS service to update, which task definition to deploy, container name and port for load balancer, and traffic routing rules.
+
+**GitHub Actions Deployment Trigger**: Creates AppSpec JSON with new task definition ARN. Dynamically injects container name (strapi) and port (1337). Submits deployment request to CodeDeploy. Monitors deployment progress.
+
+### Deployment Group Settings
+
+**Service Role**: IAM role with permissions for ECS and ALB operations.
+
+**Deployment Style**: Blue/Green with traffic control enabled.
+
+**Automatic Rollback**: Enabled on deployment failure events.
+
+**Blue Instance Termination**: Wait 5 minutes after successful deployment before terminating Blue tasks.
+
+**Deployment Ready Option**: Continue deployment automatically when Green is ready (no manual approval required).
+
+### Benefits of This Setup
+
+**Zero Downtime**: Users never experience service interruption.
+
+**Gradual Rollout**: 10% canary deployment catches issues early.
+
+**Automatic Safety**: Rollback triggers automatically on any failure.
+
+**Cost Efficient**: Old environment terminated after successful deployment.
+
+**Easy Monitoring**: CloudWatch provides visibility into deployment health.
+
+**Repeatable Process**: Fully automated via GitHub Actions and Terraform.
+
+### Monitoring Deployments
+
+CodeDeploy console shows real-time deployment status. CloudWatch logs capture deployment events. ECS service events show task launches and terminations. ALB target group health shows which tasks are receiving traffic.
+
+---
+
+## 📊 CloudWatch Monitoring
+
+### Overview
+CloudWatch provides comprehensive monitoring for the Strapi application with logging, metrics collection, alarms, and dashboards. This ensures visibility into application health and enables proactive issue detection.
+
+### CloudWatch Log Groups
+
+**Log Group**: /ecs/strapi
+
+**Purpose**: Centralized storage for all container logs from ECS tasks.
+
+**Configuration**: Created via Terraform with 7-day retention policy (adjustable). Log streams automatically created for each ECS task. Logs include application output, error messages, and access logs.
+
+### ECS Task Logging Configuration
+
+**Log Driver**: awslogs (AWS CloudWatch Logs)
+
+**Stream Prefix**: ecs/strapi (organizes logs by task)
+
+**Auto-configuration**: Task definition includes CloudWatch logs configuration. IAM task execution role has permissions to create log streams and put log events.
+
+### Key Metrics Collected
+
+**CPU Utilization**: Percentage of allocated CPU used by tasks. Helps identify performance bottlenecks. Triggers auto-scaling when thresholds exceeded.
+
+**Memory Utilization**: Percentage of allocated memory used. Prevents out-of-memory errors. Indicates if tasks need more memory allocation.
+
+**Task Count**: Number of running tasks in the service. Shows auto-scaling activity. Indicates service health (tasks restarting frequently = issues).
+
+**Network In/Out**: Data transferred to and from tasks. Monitors traffic patterns. Useful for capacity planning.
+
+**Target Group Health**: Number of healthy vs unhealthy targets. Critical for load balancer routing. Triggers alarms if tasks fail health checks.
+
+**Response Time**: Application load balancer target response time. Indicates application performance. High response time = potential performance issues.
+
+### CloudWatch Alarms
+
+**High CPU Alarm**: Triggers when CPU utilization exceeds 80% for 5 minutes. Action: Send SNS notification or trigger auto-scaling.
+
+**High Memory Alarm**: Triggers when memory utilization exceeds 85%. Action: Alert operations team to investigate.
+
+**Task Health Check Alarm**: Triggers when target group has unhealthy tasks. Action: Notify team immediately for investigation.
+
+**Low Task Count Alarm**: Triggers when running task count drops below desired. Indicates tasks are failing and not recovering.
+
+**Response Latency Alarm**: Triggers when ALB target response time exceeds 3 seconds. Indicates application performance degradation.
+
+### CloudWatch Dashboards
+
+**Optional Custom Dashboard**: Single view of all key metrics. Graphs showing CPU, memory, network, and task count trends. ALB request count and error rates. Target group health status. Log insights for quick log searching.
+
+### Log Insights Queries
+
+CloudWatch Logs Insights allows querying logs for troubleshooting:
+
+**Find Errors**: Query to filter ERROR level logs in specific time range.
+
+**Track API Requests**: Query to count requests by endpoint.
+
+**Monitor Response Times**: Query to calculate average response times.
+
+**Identify Slow Queries**: Query to find database queries exceeding thresholds.
+
+### Monitoring Best Practices
+
+**Set Appropriate Alarm Thresholds**: Balance between false positives and missing real issues.
+
+**Use SNS for Notifications**: Email or Slack integration for team alerts.
+
+**Regular Dashboard Review**: Weekly review of trends to identify gradual degradation.
+
+**Log Retention Policy**: Balance between cost and audit requirements (7-30 days typical).
+
+**Enable Container Insights**: Enhanced ECS cluster metrics for deeper visibility.
+
+### Cost Considerations
+
+**Log Storage**: First 5 GB per month free, then $0.50 per GB.
+
+**Metrics**: First 10 custom metrics free, then $0.30 per metric.
+
+**Alarms**: First 10 alarms free, then $0.10 per alarm.
+
+**Logs Insights Queries**: $0.005 per GB scanned.
+
+**Tip**: Use log retention policies to control costs. Archive older logs to S3 if needed for compliance.
+
+### Integration with Deployment
+
+CloudWatch metrics inform CodeDeploy about deployment health. If alarms trigger during Blue/Green deployment, automatic rollback occurs. Post-deployment monitoring ensures Green environment stability before terminating Blue.
+
+### Accessing Logs and Metrics
+
+**AWS Console**: Navigate to CloudWatch → Log Groups → /ecs/strapi for logs. CloudWatch → Metrics → ECS for performance metrics.
+
+**AWS CLI**: Use `aws logs tail` for real-time log streaming. Use `aws cloudwatch get-metric-statistics` for programmatic access.
+
+**Terraform Outputs**: Log group ARN and dashboard URL exported as outputs.
+
+### Troubleshooting with CloudWatch
+
+**Application not starting**: Check ECS task logs for startup errors. Look for database connection failures or missing environment variables.
+
+**High CPU usage**: Review log insights for resource-intensive operations. Check for infinite loops or inefficient queries.
+
+**Memory leaks**: Monitor memory utilization trend over time. Investigate if memory continuously increases without dropping.
+
+**Failed deployments**: Check CodeDeploy logs in CloudWatch. Review target group health check failures.
+
+---
