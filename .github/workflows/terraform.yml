@@ -82,8 +82,8 @@ jobs:
   
             cat > deploy.json <<EOF
             {
-              "applicationName": "strapi-codedeploy-app",
-              "deploymentGroupName": "strapi-ecs-dg",
+              "applicationName": "aadith-strapi-codedeploy-app",
+              "deploymentGroupName": "aadith-strapi-ecs-dg",
               "revision": {
                 "revisionType": "AppSpecContent",
                 "appSpecContent": {
@@ -106,8 +106,8 @@ jobs:
           
           # Get the latest deployment ID
           DEPLOYMENT_ID=$(aws deploy list-deployments \
-            --application-name strapi-codedeploy-app \
-            --deployment-group-name strapi-ecs-dg \
+            --application-name aadith-strapi-codedeploy-app \
+            --deployment-group-name aadith-strapi-ecs-dg \
             --query 'deployments[0]' \
             --output text \
             --region $AWS_REGION)
