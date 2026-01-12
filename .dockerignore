@@ -14,6 +14,11 @@ Thumbs.db
 .git
 .gitignore
 
+# Terraform files - not needed in Docker image
+terraform/
+*.tf
+*.tfvars
+
 *.md
 !README.md
 
